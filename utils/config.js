@@ -9,6 +9,7 @@ const USERNAME = process.env.USERNAME;
 const PASSWORD = process.env.PASSWORD;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN;
 const JWT_SECRET = process.env.JWT_SECRET;
+const AGENT_SECRET = process.env.AGENT_SECRET;
 
 module.exports = {
   PORT,
@@ -19,5 +20,6 @@ module.exports = {
   USERNAME,
   PASSWORD,
   JWT_EXPIRES_IN,
-  JWT_SECRET
+  JWT_SECRET,
+  AGENT_SECRET
 };

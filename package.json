@@ -29,6 +29,7 @@
     "express-rate-limit": "^5.5.1",
     "helmet": "^4.6.0",
     "jsonwebtoken": "^8.5.1",
+    "node-cache": "^5.1.2",
     "xss-clean": "^0.1.1"
   }
 }
