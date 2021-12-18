@@ -6,6 +6,8 @@ const xss = require('xss-clean');
 
 const middleware = require('./utils/middleware');
 const { limiter } = require('./utils/limiters');
+const authRouter = require('./controllers/authController');
+const { verifyAdminJWT } = require('./utils/authLogic');
 
 const app = express();
 
@@ -23,9 +25,11 @@ app.use(middleware.requestLogger);
 
 app.use(limiter);
 
-app.get('/', (req, res, next) => {
+app.get('/', verifyAdminJWT, (req, res, next) => {
   res.sendStatus(200);
 })
+
+app.use('/api/v1/auth', authRouter);
 
 app.use(middleware.unknownEndpoint);
 app.use(middleware.errorHandler);
