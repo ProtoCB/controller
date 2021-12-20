@@ -1,40 +1,47 @@
 const heartbeatRouter = require('express').Router();
 const registry = require('../cache/agentRegistry');
-const { verifyAgentJWT } = require('../utils/authLogic');
+const { authenticateAgent } = require('../utils/authLogic');
 
-heartbeatRouter.post('/client-agent', verifyAgentJWT, async (req, res, next) => {
+heartbeatRouter.post('/client-agent', authenticateAgent, async (req, res, next) => {
   try{
+    const key = req.body.ip + ":" + req.body.port;
     const agentInfo = {
-      ip: req.socket.remoteAddress,
-      port: req.socket.remotePort,
-      type: "client"
+      "ip": req.body.ip,
+      "port": req.body.port
+    };
+
+    const existingEntry = registry.get(key);
+    registry.set(key, agentInfo);
+
+    if(existingEntry === null) {
+      console.log("Registering client-agent: " + agentInfo.ip + ":" + agentInfo.port);
+    } else {
+      console.log("Client-agent heartbeat: " + agentInfo.ip + ":" + agentInfo.port);
     }
 
-    const key = agentInfo.ip + ":" + agentInfo.port;
-    registry.set(key, agentInfo);
-    
-    console.log("Client Heartbeat: " + agentInfo.ip + ":" + agentInfo.port);
-
     res.sendStatus(200);
-
   }
   catch(err){
     next(err);
   }
 });
 
-heartbeatRouter.post('/server-agent', async (req, res, next) => {
+heartbeatRouter.post('/server-agent', authenticateAgent, async (req, res, next) => {
   try {
     const agentInfo = {
-      ip: req.socket.remoteAddress,
-      port: req.socket.remotePort,
-      type: "server"
-    }
+      "ip": req.body.ip,
+      "port": req.body.port
+    };
 
+    const existingEntry = registry.get("server-agent");
     registry.set("server-agent", agentInfo);
     
-    console.log("Server Heartbeat: " + agentInfo.ip + ":" + agentInfo.port);
-    
+    if(existingEntry === null) {
+      console.log("Registering server-agent: " + agentInfo.ip + ":" + agentInfo.port);
+    } else {
+      console.log("Server-agent heartbeat: " + agentInfo.ip + ":" + agentInfo.port);
+    }
+
     res.sendStatus(200);
 
   } catch(err) {
