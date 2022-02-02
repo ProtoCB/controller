@@ -4,20 +4,24 @@ const { authenticateAgent } = require('../utils/authLogic');
 
 heartbeatRouter.post('/client-agent', authenticateAgent, async (req, res, next) => {
   try{
-    const key = req.body.ip + ":" + req.body.port;
+    const key = req.body.ip;
     const agentInfo = {
       "ip": req.body.ip,
-      "port": req.body.port
+      "experimentSession": req.body.experimentSession,
+      "experimentStatus": req.body.experimentStatus
     };
+
 
     const existingEntry = registry.get(key);
     registry.set(key, agentInfo);
 
     if(existingEntry === null) {
-      console.log("Registering client-agent: " + agentInfo.ip + ":" + agentInfo.port);
+      console.log("Registering client-agent: " + agentInfo.ip);
     } else {
-      console.log("Client-agent heartbeat: " + agentInfo.ip + ":" + agentInfo.port);
+      console.log("Client-agent heartbeat: " + agentInfo.ip);
     }
+
+    console.log(agentInfo);
 
     res.sendStatus(200);
   }
