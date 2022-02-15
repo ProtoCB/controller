@@ -4,6 +4,8 @@ const registry = require('../cache/agentRegistry');
 const experimentRouter = require('express').Router();
 const axios = require('axios').default;
 const config = require('../utils/config');
+const { validateExperimentRecipe } = require('../recipe/recipeValidator');
+const { scheduleExperiment } = require('../recipe/experimentScheduler');
 
 experimentRouter.get('/agents', verifyAdminJWT, middleware.requestLogger, (req, res, next) => {
   try{
@@ -14,11 +16,12 @@ experimentRouter.get('/agents', verifyAdminJWT, middleware.requestLogger, (req, 
   }
 });
 
-experimentRouter.patch('/experiment/cancel', verifyAdminJWT, middleware.requestLogger, (req, res, next) => {
+experimentRouter.patch('/cancel', verifyAdminJWT, middleware.requestLogger, (req, res, next) => {
   try {
     const registeredAgentInformation = registry.getRegisteredAgentInformation();
 
     let cancellationPromises = [];
+    let rejectedResets = []
 
     for(const agentId in registeredAgentInformation) {
       if(registeredAgentInformation[agentId]["experimentStatus"] != "Uninitialized") {
@@ -30,7 +33,10 @@ experimentRouter.patch('/experiment/cancel', verifyAdminJWT, middleware.requestL
             headers: {
               "agent-secret": config.AGENT_SECRET
             }
-          }).catch((err) => {console.log(agentId + " - cancellation failed")})
+          }).catch((err) => {
+            console.log(agentId + " - cancellation failed");
+            rejectedResets.push(agentId);
+        })
         );
 
       }
@@ -38,10 +44,20 @@ experimentRouter.patch('/experiment/cancel', verifyAdminJWT, middleware.requestL
 
     await Promise.allSettled(cancellationPromises);
 
-    res.sendStatus(200);
+    res.json({failures: rejectedResets});
 
   } catch(err) {
     next(err);
+  }
+});
+
+experimentRouter.post('/schedule', verifyAdminJWT, middleware.requestLogger, (req, res, next) => {
+  try {
+    const recipe = req.body.recipe;
+    validateExperimentRecipe(recipe);
+    scheduleExperiment(recipe);
+  } catch(err) {
+    res.sendStatus(400).json({error: err});
   }
 });
 

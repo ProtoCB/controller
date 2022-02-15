@@ -38,8 +38,13 @@ const getRegisteredAgentInformation = () => {
   return agentInformation;  
 }
 
+const keys = () => {
+  return agentRegistry.keys();
+}
+
 module.exports = {
   set,
   get,
-  getRegisteredAgentInformation
+  getRegisteredAgentInformation,
+  keys
 }
