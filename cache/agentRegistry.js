@@ -32,7 +32,14 @@ const get = (key) => {
 
 }
 
+const getRegisteredAgentInformation = () => {
+  let keys = agentRegistry.keys();
+  let agentInformation = agentRegistry.mget(keys);
+  return agentInformation;  
+}
+
 module.exports = {
   set,
-  get
+  get,
+  getRegisteredAgentInformation
 }
