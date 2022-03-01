@@ -9,7 +9,7 @@ const agentRegistry = new NodeCache({checkperiod: config.RECORD_TTL});
 
 agentRegistry.on("expired", ( key, value ) => {
   if(key == "server-agent") {
-    console.log("Server-agent incommunicado - " + value.ip + ":" + value.port);
+    console.log("Server-agent incommunicado - " + value.ip);
   } else {
     console.log("Client-agent incommunicado - " + key);
   }

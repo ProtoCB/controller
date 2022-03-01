@@ -16,7 +16,7 @@ experimentRouter.get('/agents', verifyAdminJWT, middleware.requestLogger, (req, 
   }
 });
 
-experimentRouter.patch('/cancel', verifyAdminJWT, middleware.requestLogger, (req, res, next) => {
+experimentRouter.patch('/cancel', verifyAdminJWT, middleware.requestLogger, async (req, res, next) => {
   try {
     const registeredAgentInformation = registry.getRegisteredAgentInformation();
 
@@ -56,8 +56,11 @@ experimentRouter.post('/schedule', verifyAdminJWT, middleware.requestLogger, (re
     const recipe = req.body.recipe;
     validateExperimentRecipe(recipe);
     scheduleExperiment(recipe);
+    
+    res.sendStatus(200);
+
   } catch(err) {
-    res.sendStatus(400).json({error: err});
+    next(err);
   }
 });
 

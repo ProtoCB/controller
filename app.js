@@ -9,6 +9,7 @@ const { limiter } = require('./utils/limiters');
 const authRouter = require('./controllers/authController');
 const { verifyAdminJWT } = require('./utils/authLogic');
 const heartbeatRouter = require('./controllers/heartbeatController');
+const experimentRouter = require('./controllers/experimentController');
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.get('/', verifyAdminJWT, (req, res, next) => {
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/heartbeat', heartbeatRouter);
+app.use('/api/v1/experiment', experimentRouter);
 
 
 app.use(middleware.unknownEndpoint);
