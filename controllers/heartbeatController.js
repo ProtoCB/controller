@@ -17,11 +17,7 @@ heartbeatRouter.post('/client-agent', authenticateAgent, async (req, res, next) 
 
     if(existingEntry === null) {
       console.log("Registering client-agent: " + agentInfo.ip);
-    } else {
-      console.log("Client-agent heartbeat: " + agentInfo.ip);
     }
-
-    console.log(agentInfo);
 
     res.sendStatus(200);
   }
@@ -43,11 +39,7 @@ heartbeatRouter.post('/server-agent', authenticateAgent, async (req, res, next) 
     
     if(existingEntry === null) {
       console.log("Registering server-agent: " + agentInfo.ip);
-    } else {
-      console.log("Server-agent heartbeat: " + agentInfo.ip);
     }
-
-    console.log(agentInfo);
 
     res.sendStatus(200);
 

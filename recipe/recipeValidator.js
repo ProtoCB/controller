@@ -2,7 +2,7 @@ const registry = require('../cache/agentRegistry');
 const AppError = require('../utils/appError');
 
 const validateCircuitBreakerParameters = (recipe) => {
-  let requiredParameters;
+  let requiredParameters = [];
   
   if(recipe["circuitBreakerType"] == "Static") {
     requiredParameters = ["FT", "HOFT", "HOST", "OD", "WS"];

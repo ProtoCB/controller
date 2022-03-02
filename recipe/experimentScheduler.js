@@ -1,6 +1,7 @@
 const registry = require('../cache/agentRegistry');
 const axios = require('axios').default;
 const { bucket }  = require('../firebase/storage');
+const config = require('../utils/config');
 
 const scheduleExperiment = (recipe) => {
   let commonPayload = {
@@ -45,178 +46,195 @@ const initializeFirebaseFolder = async (sessionId, agents) => {
 };
 
 const scheduleExperimentOnClientAgents = async (commonPayload, recipe, clientAgents) => {
-  let startTime = recipe["experimentStartTime"];
-  let serverUrl = registry.get("server-agent")["ip"];
+  try {
 
-  let schedulingPromises = [];
-  let recipeUploads = [];
-  let rejectedAgentSchedulings = []
+    console.log("Now scheduling for client agents");
+    
+    let startTime = recipe["experimentStartTime"];
+    let serverUrl = registry.get("server-agent")["ip"];
 
-  let unfurledNetworkPartitionSchedule = recipe["networkPartitionSchedule"].map((entry) => {
-    let scheduleEntry = {};
-    scheduleEntry["networkPartitioned"] = entry["networkPartitioned"];
-    scheduleEntry["time"] = entry["time"] + startTime;
+    let schedulingPromises = [];
+    let recipeUploads = [];
+    let rejectedAgentSchedulings = []
 
-    let networkPartitions = [];
+    let unfurledNetworkPartitionSchedule = recipe["networkPartitionSchedule"].map((entry) => {
+      let scheduleEntry = {};
+      scheduleEntry["networkPartitioned"] = entry["networkPartitioned"];
+      scheduleEntry["time"] = entry["time"] + startTime;
 
-    if(scheduleEntry["networkPartitioned"]) {
-      let partitions = entry["partitions"];
-      let index = 0;
-      for(let partition of partitions) {
-        let unfurledPartition = [];
-        for(let i = 0; i < partition["clientCount"]; i++) {
-          unfurledPartition.push(clientAgents[index]);
-          index++;
+      let networkPartitions = [];
+
+      if(scheduleEntry["networkPartitioned"]) {
+        let partitions = entry["partitions"];
+        let index = 0;
+        for(let partition of partitions) {
+          let unfurledPartition = [];
+          for(let i = 0; i < partition["clientCount"]; i++) {
+            unfurledPartition.push(clientAgents[index]);
+            index++;
+          }
+          if(partition["serverAccessible"]) {
+            unfurledPartition.push(serverUrl);
+          }
+          networkPartitions.push(unfurledPartition);
         }
-        if(partition["serverAccessible"]) {
-          unfurledPartition.push(serverUrl);
-        }
-        networkPartitions.push(unfurledPartition);
       }
-    }
 
-    scheduleEntry["partitions"] = networkPartitions;
+      scheduleEntry["partitions"] = networkPartitions;
 
-    return scheduleEntry;
-  });
-  
-  let index = 0;
-  for(let group of recipe["clientGroups"]) {
-
-    for(let entry of group["requestRateSchedule"]) {
-      entry["time"] = entry["time"] + startTime;
-    }
-
-    for(let entry of group["clientLifeSchedule"]) {
-      entry["time"] = entry["time"] + startTime;
-    }
-
-    for(let i = 0; i < group["clientCount"]; i++) {
-
-      let clientUrl = clientAgents[index];
-      index++;
-
-      let clientSchedulingPayload = {
-        ...commonPayload,
-        "minLatency": group["minLatency"],
-        "failureInferenceTime": group["failureInferenceTime"],
-        "tfProbability": group["tfProbability"],
-        "requestRateSchedule": group["requestRateSchedule"],
-        "clientLifeSchedule": group["clientLifeSchedule"]
-      };
-
-      let networkPartitionSchedule = unfurledNetworkPartitionSchedule.map((entry) => {
-        let scheduleEntry = {};
-        scheduleEntry["networkPartitioned"] = entry["networkPartitioned"];
-        scheduleEntry["time"] = entry["time"];
+      return scheduleEntry;
+    });
     
-        let accessibleNetworkPartition = [];
-    
-        if(entry["networkPartitioned"]) {
-          let partitions = entry["partitions"];
-          for(let partition of partitions) {
-            if(partition.includes(clientUrl)) {
-              accessibleNetworkPartition = partition;
-              break;
+    let index = 0;
+    for(let group of recipe["clientGroups"]) {
+
+      for(let entry of group["requestRateSchedule"]) {
+        entry["time"] = entry["time"] + startTime;
+      }
+
+      for(let entry of group["clientLifeSchedule"]) {
+        entry["time"] = entry["time"] + startTime;
+      }
+
+      for(let i = 0; i < group["clientCount"]; i++) {
+
+        let clientUrl = clientAgents[index];
+        index++;
+
+        let clientSchedulingPayload = {
+          ...commonPayload,
+          "serverUrl": serverUrl,
+          "minLatency": group["minLatency"],
+          "failureInferenceTime": group["failureInferenceTime"],
+          "tfProbability": group["tfProbability"],
+          "requestRateSchedule": group["requestRateSchedule"],
+          "clientLifeSchedule": group["clientLifeSchedule"]
+        };
+
+        let networkPartitionSchedule = unfurledNetworkPartitionSchedule.map((entry) => {
+          let scheduleEntry = {};
+          scheduleEntry["networkPartitioned"] = entry["networkPartitioned"];
+          scheduleEntry["time"] = entry["time"];
+      
+          let accessibleNetworkPartition = [];
+      
+          if(entry["networkPartitioned"]) {
+            let partitions = entry["partitions"];
+            for(let partition of partitions) {
+              if(partition.includes(clientUrl)) {
+                accessibleNetworkPartition = partition;
+                break;
+              }
             }
           }
-        }
-    
-        scheduleEntry["partition"] = accessibleNetworkPartition;
-    
-        return scheduleEntry;
-      });
+      
+          scheduleEntry["partition"] = accessibleNetworkPartition;
+      
+          return scheduleEntry;
+        });
 
-      clientSchedulingPayload["networkPartitionSchedule"] = networkPartitionSchedule;
+        clientSchedulingPayload["networkPartitionSchedule"] = networkPartitionSchedule;
 
-      console.log(JSON.stringify({ [clientUrl]: clientSchedulingPayload}, null, 2));
+        schedulingPromises.push(
+          axios({
+            method: "post",
+            url: "http://" + clientUrl + "/api/v1/northbound/schedule-experiment",
+            headers: {
+              "agent-secret": config.AGENT_SECRET
+            },
+            data: clientSchedulingPayload
+          }).then((response) => {
+            console.log(clientUrl + " - success in scheduling");
+          }).catch((err) => {
+            console.log(clientUrl + " - scheduling failed");
+            rejectedAgentSchedulings.push(clientUrl);
+        })
+        );
 
-      schedulingPromises.push(
-        axios({
-          method: "post",
-          url: agentId + "/api/v1/northbound/schedule-experiment",
-          headers: {
-            "agent-secret": config.AGENT_SECRET
-          },
-          data: clientSchedulingPayload
-        }).catch((err) => {
-          console.log(clientUrl + " - scheduling failed");
-          rejectedAgentSchedulings.push(clientUrl);
-      })
-      );
+        recipeUploads.push(bucket
+          .file(recipe["experimentSession"] + '/recipes/' + clientUrl + ".json")
+          .save(JSON.stringify(clientSchedulingPayload))
+          .then(() => console.log("Firebase: Recipe uploaded for " + clientUrl))
+          .catch((ex) => {console.log("Firebase: Failed to upload recipe for - " + clientUrl)}));
 
-      recipeUploads.push(bucket
-        .file(recipe["experimentSession"] + '/recipes/' + clientUrl + ".json")
-        .save(JSON.stringify(clientSchedulingPayload))
-        .catch((ex) => {console.log("Failed to upload recipe for - " + clientUrl)}));
+      }  
+    }
 
-    }  
+    await Promise.allSettled(schedulingPromises);
+    await Promise.allSettled(recipeUploads);
+
+  } catch(ex) {
+    console.log(ex);
+    throw ex;
   }
-
-  await Promise.allSettled(schedulingPromises);
-  await Promise.allSettled(recipeUploads);
-
-  console.log("Client Experiment Scheduling failed for: " + rejectedAgentSchedulings);
 };
 
 const scheduleExperimentOnServerAgent = async (commonPayload, recipe, clientAgents) => {
-  let serverUrl = registry.get("server-agent")["ip"];
-  let startTime = recipe["experimentStartTime"];
+  try {
+    console.log("Now scheduling for server agent");
+    let serverUrl = registry.get("server-agent")["ip"];
+    let startTime = recipe["experimentStartTime"];
 
-  let networkPartitionSchedule = recipe["networkPartitionSchedule"].map((entry) => {
-    let scheduleEntry = {};
-    scheduleEntry["networkPartitioned"] = entry["networkPartitioned"];
-    scheduleEntry["time"] = entry["time"] + startTime;
+    let networkPartitionSchedule = recipe["networkPartitionSchedule"].map((entry) => {
+      let scheduleEntry = {};
+      scheduleEntry["networkPartitioned"] = entry["networkPartitioned"];
+      scheduleEntry["time"] = entry["time"] + startTime;
 
-    let accessibleClients = [];
+      let accessibleClients = [];
 
-    if(scheduleEntry["networkPartitioned"]) {
-      let partitions = entry["partitions"];
-      let index = 0;
-      for(let partition of partitions) {
-        if(!partition["serverAccessible"]) {
-          index = index + partition["clientCount"];
-        } else {
-          for(let i = 0; i < partition["clientCount"]; i++) {
-            accessibleClients.push(clientAgents[index]);
-            index++;
+      if(scheduleEntry["networkPartitioned"]) {
+        let partitions = entry["partitions"];
+        let index = 0;
+        for(let partition of partitions) {
+          if(!partition["serverAccessible"]) {
+            index = index + partition["clientCount"];
+          } else {
+            for(let i = 0; i < partition["clientCount"]; i++) {
+              accessibleClients.push(clientAgents[index]);
+              index++;
+            }
           }
         }
+
+        accessibleClients.push(serverUrl);
+
       }
 
-      accessibleClients.push(serverUrl);
+      scheduleEntry["partition"] = accessibleClients;
 
-    }
+      return scheduleEntry;
+    });
 
-    scheduleEntry["partition"] = accessibleClients;
+    let serverSchedulingPayload = {
+      ...commonPayload,
+      "networkPartitionSchedule": networkPartitionSchedule,
+      ...recipe["serverConfig"]
+    };
 
-    return scheduleEntry;
-  });
+    await axios({
+        method: "post",
+        url: "http://" + serverUrl + "/api/v1/northbound/schedule-experiment",
+        headers: {
+          "agent-secret": config.AGENT_SECRET
+        },
+        data: serverSchedulingPayload
+      }).then((response) => {
+        console.log(serverUrl + " - success in scheduling");
+      })
+      .catch((err) => {
+        console.log(serverUrl + " - sheduling failed");
+    });
 
-  let serverSchedulingPayload = {
-    ...commonPayload,
-    "networkPartitionSchedule": networkPartitionSchedule,
-    ...recipe["serverConfig"]
-  };
+    await bucket
+    .file(recipe["experimentSession"] + '/recipes/' + serverUrl + ".json")
+    .save(JSON.stringify(serverSchedulingPayload))
+    .then(() => {console.log("Firebase: Recipe uploaded for " + serverUrl)})
+    .catch((ex) => {console.log("Firebase: Failed to upload recipe for - " + serverUrl)});
 
-  console.log(JSON.stringify({ [serverUrl]: serverSchedulingPayload}, null, 2));
-
-  await axios({
-      method: "post",
-      url: serverUrl + "/api/v1/northbound/schedule-experiment",
-      headers: {
-        "agent-secret": config.AGENT_SECRET
-      },
-      data: serverSchedulingPayload
-    }).catch((err) => {
-      console.log(serverUrl + " - server experiment sheduling failed");
-  });
-
-  await bucket
-  .file(recipe["experimentSession"] + '/recipes/' + serverUrl + ".json")
-  .save(JSON.stringify(serverSchedulingPayload))
-  .catch((ex) => {console.log("Failed to upload recipe for - " + serverUrl)});
-
+  } catch(ex) {
+    console.log(ex);
+    throw ex;
+  }
 };
 
 module.exports = {
