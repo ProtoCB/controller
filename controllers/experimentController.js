@@ -7,10 +7,10 @@ const config = require('../utils/config');
 const { validateExperimentRecipe } = require('../recipe/recipeValidator');
 const { scheduleExperiment } = require('../recipe/experimentScheduler');
 
-experimentRouter.get('/agents', verifyAdminJWT, middleware.requestLogger, (req, res, next) => {
+experimentRouter.get('/agents', verifyAdminJWT, (req, res, next) => {
   try{
     const registeredAgentInformation = registry.getRegisteredAgentInformation();
-    res.json(registeredAgentInformation);
+    res.status(200).json({ "agents": registeredAgentInformation});
   } catch(err) {
     next(err);
   }
@@ -36,7 +36,7 @@ experimentRouter.patch('/cancel', verifyAdminJWT, middleware.requestLogger, asyn
           }).catch((err) => {
             console.log(agentId + " - cancellation failed");
             rejectedResets.push(agentId);
-        })
+          })
         );
 
       }
@@ -44,7 +44,7 @@ experimentRouter.patch('/cancel', verifyAdminJWT, middleware.requestLogger, asyn
 
     await Promise.allSettled(cancellationPromises);
 
-    res.json({failures: rejectedResets});
+    res.status(200).json({failures: rejectedResets});
 
   } catch(err) {
     next(err);

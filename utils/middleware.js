@@ -13,7 +13,8 @@ const unknownEndpoint = (req, res, next)=>{
 };
 const showError = (err)=>{
     console.log('--------------------------------------------------');
-    console.log(err);
+    console.log("Status: " + err.statusCode);
+    console.log(err.message)
     console.log('--------------------------------------------------');
 };
 
@@ -45,6 +46,7 @@ const handleJWTExpiredError = () =>
     new AppError('Your token has expired! Please log in again.', 401);
 
 const sendErrorDev = (err, res) => {
+    showError(err);
     res.status(err.statusCode).json({
         status: err.status,
         error: err,
@@ -54,6 +56,7 @@ const sendErrorDev = (err, res) => {
 };
 
 const sendErrorProd = (err, res) => {
+    showError(err);
     // Operational, trusted error: send message to client
     if (err.isOperational) {
         res.status(err.statusCode).json({

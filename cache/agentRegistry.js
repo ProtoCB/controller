@@ -34,7 +34,14 @@ const get = (key) => {
 
 const getRegisteredAgentInformation = () => {
   let keys = agentRegistry.keys();
-  let agentInformation = agentRegistry.mget(keys);
+  let agentEntries = agentRegistry.mget(keys);
+
+  let agentInformation = [];
+  for(let key of keys) {
+    let entry = agentEntries[key];
+    if(entry) agentInformation.push(entry);
+  }
+  
   return agentInformation;  
 }
 
