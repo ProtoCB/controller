@@ -53,11 +53,11 @@ experimentRouter.patch('/cancel', verifyAdminJWT, middleware.requestLogger, asyn
   }
 });
 
-experimentRouter.post('/schedule', verifyAdminJWT, middleware.requestLogger, (req, res, next) => {
+experimentRouter.post('/schedule', verifyAdminJWT, middleware.requestLogger, async (req, res, next) => {
   try {
     const recipe = req.body.recipe;
     validateExperimentRecipe(recipe);
-    scheduleExperiment(recipe);
+    await scheduleExperiment(recipe);
     
     res.sendStatus(200);
 

@@ -23,8 +23,6 @@ app.use(xss());
 app.use(cookieParser());
 app.use(express.json({ limit: '10kb' }));
 
-app.use(limiter);
-
 app.get('/', verifyAdminJWT, (req, res, next) => {
   res.send();
 })

@@ -3,7 +3,7 @@ const axios = require('axios').default;
 const { bucket }  = require('../firebase/storage');
 const config = require('../utils/config');
 
-const scheduleExperiment = (recipe) => {
+const scheduleExperiment = async (recipe) => {
   let commonPayload = {
     "experimentSession": recipe["experimentSession"],
 	  "eventsToLog": recipe["eventsToLog"],
@@ -30,9 +30,11 @@ const scheduleExperiment = (recipe) => {
     clientAgents.splice(index, 1);
   }
 
-  initializeFirebaseFolder(recipe["experimentSession"], clientAgents);
-  scheduleExperimentOnServerAgent(commonPayload, recipe, clientAgents);
-  scheduleExperimentOnClientAgents(commonPayload, recipe, clientAgents);
+  console.log("Scheduling - " + recipe["experimentSession"]);
+
+  await initializeFirebaseFolder(recipe["experimentSession"], clientAgents);
+  await scheduleExperimentOnServerAgent(commonPayload, recipe, clientAgents);
+  await scheduleExperimentOnClientAgents(commonPayload, recipe, clientAgents);
 
 };
 
@@ -41,6 +43,7 @@ const initializeFirebaseFolder = async (sessionId, agents) => {
     agents.push("server-" + registry.get("server-agent")["ip"])
     await bucket.file(sessionId + '/participants.json').save(JSON.stringify(agents));
   } catch(ex) {
+    console.log(ex);
     console.log("Failed to initialize firebase storage folder for experiment session - " + sessionId);
   }
 };
@@ -155,7 +158,10 @@ const scheduleExperimentOnClientAgents = async (commonPayload, recipe, clientAge
           .file(recipe["experimentSession"] + '/recipes/' + clientUrl + ".json")
           .save(JSON.stringify(clientSchedulingPayload))
           .then(() => console.log("Firebase: Recipe uploaded for " + clientUrl))
-          .catch((ex) => {console.log("Firebase: Failed to upload recipe for - " + clientUrl)}));
+          .catch((ex) => {
+            console.log(ex);
+            console.log("Firebase: Failed to upload recipe for - " + clientUrl);
+          }));
 
       }  
     }
@@ -229,7 +235,10 @@ const scheduleExperimentOnServerAgent = async (commonPayload, recipe, clientAgen
     .file(recipe["experimentSession"] + '/recipes/' + serverUrl + ".json")
     .save(JSON.stringify(serverSchedulingPayload))
     .then(() => {console.log("Firebase: Recipe uploaded for " + serverUrl)})
-    .catch((ex) => {console.log("Firebase: Failed to upload recipe for - " + serverUrl)});
+    .catch((ex) => {
+      console.log(ex);
+      console.log("Firebase: Failed to upload recipe for - " + serverUrl);
+    });
 
   } catch(ex) {
     console.log(ex);
