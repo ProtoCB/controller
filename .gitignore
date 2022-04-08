@@ -11,3 +11,4 @@ node_modules/
 .env.production
 
 .vscode
+serviceAccount.json

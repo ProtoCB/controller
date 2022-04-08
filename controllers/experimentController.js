@@ -23,9 +23,7 @@ experimentRouter.patch('/cancel', verifyAdminJWT, middleware.requestLogger, asyn
     let cancellationPromises = [];
     let rejectedResets = []
 
-    for(let agent of registeredAgentInformation) {
-      if(agent["experimentStatus"] != "Uninitialized") {
-        
+    for(let agent of registeredAgentInformation) {        
         cancellationPromises.push(
           axios({
             method: "patch",
@@ -33,18 +31,17 @@ experimentRouter.patch('/cancel', verifyAdminJWT, middleware.requestLogger, asyn
             headers: {
               "agent-secret": config.AGENT_SECRET
             }
-          }).catch((err) => {
+          }).then(() => console.log("Cancelled - " + agent["ip"]))
+          .catch((err) => {
             console.log(agent["ip"] + " - cancellation failed");
             rejectedResets.push(agent["ip"]);
           })
         );
-
-      }
     }
 
     await Promise.allSettled(cancellationPromises);
 
-    console.log(rejectedResets.toString());
+    console.log("Rejects - " + rejectedResets.toString());
 
     res.status(200).json({failures: rejectedResets});
 
